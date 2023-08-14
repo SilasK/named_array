@@ -4,11 +4,11 @@ from os import path
 setup(
     name='named_array',
     py_modules=['named_array'],
-    version='0.11',
+    version='1.0.0',
     license='LGPLv2.1',
     description=
     'This is a python module that extends numpy array to be able to have column names to index with',
-    author='Rainbow-Dreamer',
+    author=['Rainbow-Dreamer','silasK']
     author_email='1036889495@qq.com',
     install_requires=['py'],
     url='https://github.com/Rainbow-Dreamer/named_array',
