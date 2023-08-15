@@ -15,6 +15,11 @@ class NamedArray(np.ndarray):
         
         return obj
 
+    def __array_finalize__(self, obj):
+        if obj is None: return
+        self.row_labels = getattr(obj, 'row_labels', None)
+        self.col_labels = getattr(obj, 'col_labels', None)
+
     def _set_axis_labels(self, axis, labels):
         """Set axis labels, ensure they are strings and unique."""
 
@@ -59,7 +64,7 @@ class NamedArray(np.ndarray):
         if truncate_cols:
             col_labels_to_display.append("...")
         
-        col_header = "      | " + " ".join(col_labels_to_display)
+        col_header = "\n      | " + " ".join(col_labels_to_display)
         data_str = "\n".join(data_str_list)
 
         return col_header + "\n" + data_str
@@ -97,7 +102,13 @@ class NamedArray(np.ndarray):
 
     def __getitem__(self, key):
         indices = self._get_indices(key)
-        return super(NamedArray, self).__getitem__(indices)
+        result = super().__getitem__(indices)
+        if isinstance(result, NamedArray):
+            if len(indices) > 0 and isinstance(indices[0], (int, list, slice)):
+                result.row_labels = self.row_labels[indices[0]]
+            if len(indices) > 1 and isinstance(indices[1], (int, list, slice)):
+                result.col_labels = self.col_labels[indices[1]]
+        return result
 
     def __setitem__(self, key, value):
         indices = self._get_indices(key)
@@ -141,4 +152,61 @@ class NamedArray(np.ndarray):
             row_labels = [label.decode('utf-8') for label in f['row_labels']]
             col_labels = [label.decode('utf-8') for label in f['col_labels']]
         return cls(data, index=row_labels, columns=col_labels)
+
+
+    def transpose(self, *axes):
+        transposed_array = super().transpose(*axes)
+        transposed_array.row_labels, transposed_array.col_labels = self.col_labels, self.row_labels
+        return transposed_array
+
+    @property
+    def T(self):
+        return self.transpose()
+
+
+    def __eq__(self, other):
+        if not isinstance(other, NamedArray):
+            return False
+        
+        # Check if data in the arrays are equal
+        data_equal = np.array_equal(self, other)
+
+        # Check if row_labels and col_labels are equal
+        row_labels_equal = np.array_equal(self.row_labels, other.row_labels)
+        col_labels_equal = np.array_equal(self.col_labels, other.col_labels)
+        
+        return data_equal and row_labels_equal and col_labels_equal
+    
+    ##### aggregartion methods
+
+    def _preserve_labels(self, result, axis=None):
+        if axis is None:
+            return result
+        elif axis == 0:
+            if result.ndim == 1:
+                return NamedArray(result, columns=self.col_labels)
+            else:
+                return NamedArray(result)
+        elif axis == 1:
+            if result.ndim == 1:
+                return NamedArray(result, index=self.row_labels)
+            else:
+                return NamedArray(result)
+
+        
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        # Convert inputs that are NamedArray to ndarray
+        inputs = tuple(input_.view(np.ndarray) if isinstance(input_, NamedArray) else input_ for input_ in inputs)
+        
+        # Use the superclass's behavior to perform the operation
+        result = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
+        if result is NotImplemented:
+            return result
+
+        # For 'reduce' method, preserve labels
+        if method == 'reduce':
+            return self._preserve_labels(result, kwargs.get('axis', None))
+        
+        return result
+
 
