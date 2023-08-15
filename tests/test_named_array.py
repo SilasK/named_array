@@ -7,8 +7,8 @@ class TestNamedArray(unittest.TestCase):
     def test_initialization(self):
         # Basic initialization with default labels
         arr = NamedArray([[1, 2], [3, 4]])
-        self.assertEqual(arr.row_labels, [0, 1])
-        self.assertEqual(arr.col_labels, [0, 1])
+        self.assertEqual(arr.row_labels, ["0", "1"])
+        self.assertEqual(arr.col_labels, ["0", "1"])
 
         # Initialization with custom labels
         arr = NamedArray([[1, 2], [3, 4]], index=["a", "b"], columns=["x", "y"])
@@ -27,8 +27,8 @@ class TestNamedArray(unittest.TestCase):
         arr = NamedArray([[1, 2], [3, 4]])
         
         # Testing get_labels
-        self.assertEqual(arr.get_labels(0), [0, 1])
-        self.assertEqual(arr.get_labels(1), [0, 1])
+        self.assertEqual(arr.get_labels(0), ["0", "1"])
+        self.assertEqual(arr.get_labels(1), ["0", "1"])
 
         # Testing set_labels
         arr.set_labels(0, ["a", "b"])
@@ -37,21 +37,41 @@ class TestNamedArray(unittest.TestCase):
         self.assertEqual(arr.col_labels, ["x", "y"])
 
     def test_indexing(self):
-        arr = NamedArray([[1, 2], [3, 4]], index=["a", "b"], columns=["x", "y"])
 
-        # Label-based indexing
-        self.assertEqual(arr["a", "x"], 1)
-        self.assertEqual(arr["b", "y"], 4)
+        values = np.array([[1, 2, 3, 4], 
+                          [5, 6 ,7, 8],
+                          [9,10,11,12]])
         
+        arr = NamedArray(values, index=["S1", "S2","S3"], columns=["a", "b","c","d"])
+
         # Integer indexing
         self.assertEqual(arr[0, 1], 2)
+
+        # Label-based indexing
+        self.assertEqual(arr["S1", "a"], 1)
+        self.assertEqual(arr["S2", "b"], 6)
+        
+
         
         # Mixed indexing
-        self.assertEqual(arr["a", 1], 2)
-        
+        self.assertEqual(arr["S1", 1], 2)
+        self.assertEqual(arr[0, "c"], 3)
+
+        #subseting
+
+        self.assertEqual(arr["S1", 1], 2)
+
         # Slicing
-        sub_arr = arr["a":"b", "x":"y"]
-        np.testing.assert_array_equal(sub_arr, [[1, 2], [3, 4]])
+        sub_arr = arr[ "S1":"S3","a":"c"]
+        solution= np.array([[1, 2], [5, 6]])
+
+        self.assertEqual(sub_arr.shape, (2, 2))
+        self.assertEqual(sub_arr.row_labels, ["S1", "S2"])
+        self.assertEqual(sub_arr.col_labels, ["a", "b"])
+
+        np.testing.assert_array_equal(sub_arr.data,solution )
+
+
 
     def test_arithmetic_operations(self):
         arr1 = NamedArray([[1, 2], [3, 4]], index=["a", "b"], columns=["x", "y"])
@@ -66,9 +86,8 @@ class TestNamedArray(unittest.TestCase):
         np.testing.assert_array_equal(result, [[2, 6], [12, 20]])
 
         # Matrix multiplication
-        arr3 = NamedArray([[2], [3]], index=["x", "y"])
-        result = arr1 @ arr3
-        np.testing.assert_array_equal(result, [[8], [18]])
+        result = arr1 @ arr2
+        np.testing.assert_array_equal(result, [[10, 13], [22, 29]])
 
     def test_serialization(self):
         arr = NamedArray([[1, 2], [3, 4]], index=["a", "b"], columns=["x", "y"])
