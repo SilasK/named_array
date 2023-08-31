@@ -207,14 +207,6 @@ class TestNamedArray(unittest.TestCase):
 
         arr = NamedArray(data, index=row_labels, columns=col_labels)
 
-        # Testing mean along axis 0 (columns)
-        col_mean = np.mean(arr, axis=0)
-        self.assertListEqual(col_mean.col_labels, col_labels)
-
-        # Testing mean along axis 1 (rows)
-        row_mean = np.mean(arr, axis=1)
-        self.assertListEqual(row_mean.row_labels, row_labels)
-
         # Testing min along axis 0 (columns)
         col_min = np.min(arr, axis=0)
         self.assertListEqual(col_min.col_labels, col_labels)
@@ -230,6 +222,25 @@ class TestNamedArray(unittest.TestCase):
         # Testing max along axis 1 (rows)
         row_max = np.max(arr, axis=1)
         self.assertListEqual(row_max.row_labels, row_labels)
+
+        # Testing mean along axis 0 (columns)
+        col_mean = np.mean(arr, axis=0)
+        self.assertListEqual(col_mean.col_labels, col_labels)
+
+
+        # Testing sum along axis 0 (columns)
+        col_sum = np.sum(arr, axis=0)
+        self.assertListEqual(list(col_sum.col_labels), col_labels)
+
+        # Testing sum along axis 1 (rows)
+        row_sum = np.sum(arr, axis=1)
+        self.assertListEqual(list(row_sum.row_labels), row_labels)
+
+        # Testing mean along axis 1 (rows)
+        row_mean = np.mean(arr, axis=1)
+        self.assertListEqual(row_mean.row_labels, row_labels)
+
+
 
 
 

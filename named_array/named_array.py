@@ -22,25 +22,30 @@ class NamedArray(np.ndarray):
 
     def _set_axis_labels(self, axis, labels):
         """Set axis labels, ensure they are strings and unique."""
-
         if labels is None:
-            labels = [str(i) for i in range(self.shape[axis])]
-        else:
-            if any(not isinstance(label, str) for label in labels):
-                raise ValueError("All labels must be strings.")
-            
-            if len(labels) != len(set(labels)):
-                raise ValueError("Labels must be unique.")
-            
-            if axis == 0 and len(labels) != self.shape[0]:
-                raise ValueError(f"Number of row labels {len(labels)} does not match number of rows {self.shape[0]}.")
-            elif axis == 1 and len(labels) != self.shape[1]:
-                raise ValueError(f"Number of column labels {len(labels)} does not match number of columns {self.shape[1]}.")
-        
+            if axis == 0:
+                labels = [str(i) for i in range(self.shape[0])]
+            elif len(self.shape) > 1 and axis == 1:
+                labels = [str(i) for i in range(self.shape[1])]
+            else:
+                labels = [str(i) for i in range(len(self))]  # For 1D result
+
+        if any(not isinstance(label, str) for label in labels):
+            raise ValueError("All labels must be strings.")
+
+        if len(labels) != len(set(labels)):
+            raise ValueError("Labels must be unique.")
+
+        if axis == 0 and len(labels) != self.shape[0]:
+            raise ValueError(f"Number of row labels {len(labels)} does not match number of rows {self.shape[0]}.")
+        elif len(self.shape) > 1 and axis == 1 and len(labels) != self.shape[1]:
+            raise ValueError(f"Number of column labels {len(labels)} does not match number of columns {self.shape[1]}.")
+
         if axis == 0:
             self.row_labels = labels
-        elif axis == 1:
+        else:
             self.col_labels = labels
+
 
     def __repr__(self):
         max_rows, max_cols = 10, 6  # Maximum rows and columns to display before truncating
@@ -48,15 +53,21 @@ class NamedArray(np.ndarray):
 
         # Decide if truncation is needed
         truncate_rows = self.shape[0] > max_rows
-        truncate_cols = self.shape[1] > max_cols
+        if len(self.shape) > 1:
+            truncate_cols = self.shape[1] > max_cols
+        else:
+            truncate_cols = False
 
         rows_to_display = range(min(self.shape[0], max_rows))
-        cols_to_display = range(min(self.shape[1], max_cols))
+        if len(self.shape) > 1:
+            cols_to_display = range(min(self.shape[1], max_cols))
+        else:
+            cols_to_display = range(0)
 
         # Constructing the displayed data string
         for i in rows_to_display:
             row_data = [f"{self[i, j]:.4f}" for j in cols_to_display]
-            if truncate_cols:
+            if truncate_rows:
                 row_data.append("...")
             data_str_list.append(f"{self.row_labels[i]:>5} | " + " ".join(row_data))
 
@@ -195,18 +206,22 @@ class NamedArray(np.ndarray):
 
         
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        # Convert inputs that are NamedArray to ndarray
-        inputs = tuple(input_.view(np.ndarray) if isinstance(input_, NamedArray) else input_ for input_ in inputs)
+        # Convert NamedArray instances to ndarray
+        inputs_as_array = tuple(np.asarray(i) if isinstance(i, NamedArray) else i for i in inputs)
         
-        # Use the superclass's behavior to perform the operation
-        result = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
+        # Execute the ufunc
+        result = super().__array_ufunc__(ufunc, method, *inputs_as_array, **kwargs)
+        
         if result is NotImplemented:
-            return result
-
-        # For 'reduce' method, preserve labels
-        if method == 'reduce':
-            return self._preserve_labels(result, kwargs.get('axis', None))
+            return NotImplemented
         
+        # If the result is an ndarray and not a scalar
+        if isinstance(result, np.ndarray):
+            if result.ndim == 1:
+                if kwargs.get('axis', None) == 0:  # Row-wise operation
+                    return NamedArray(result, index=self.col_labels)
+                else:  # Column-wise operation
+                    return NamedArray(result, index=self.row_labels)
+            elif result.ndim == 2:
+                return NamedArray(result, index=self.row_labels, columns=self.col_labels)
         return result
-
-
